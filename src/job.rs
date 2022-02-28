@@ -113,12 +113,6 @@ spec:
     labels:
       apps.mx.com/deploymenthook: finished
   containers:
-    - name: haproxy
-      command:
-        - "sh"
-        - "-c"
-        - |
-          echo "Hi there!"
     - name: nginx
       command:
         - "sh"
