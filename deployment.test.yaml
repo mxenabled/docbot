@@ -17,7 +17,7 @@ metadata:
     app: nginx
     apps.mx.com/deploymenthook: finished
 spec:
-  replicas: 1
+  replicas: 4
   selector:
     matchLabels:
       app: nginx
