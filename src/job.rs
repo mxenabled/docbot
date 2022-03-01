@@ -24,6 +24,12 @@ pub fn generate_from_template(
     if let Some(pod_template_spec) = template.template {
         job_spec.template = pod_template_spec.clone();
         if let Some(ref mut spec) = job_spec.template.spec {
+            // Reset this value of Always was specified. This is the default value for
+            // PodTemplates used by Pods, but it is invalid for Jobs.
+            if spec.restart_policy == Some("Always".to_string()) {
+                spec.restart_policy = None;
+            }
+
             spec.restart_policy = Some(
                 spec.restart_policy
                     .clone()

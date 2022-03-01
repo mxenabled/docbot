@@ -82,12 +82,12 @@ async fn watch_for_new_deployments(
                     &some_job.metadata.namespace.as_ref().unwrap(),
                 );
 
-                job_api.create(&PostParams::default(), &some_job).await?;
-
                 println!(
                     "------- JOB:\n{}",
                     serde_yaml::to_string(&some_job).unwrap()
                 );
+
+                job_api.create(&PostParams::default(), &some_job).await?;
 
                 continue;
             }
