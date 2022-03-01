@@ -32,6 +32,27 @@ impl ContextData {
     }
 }
 
+fn find_matching_deployment_hooks_for_deployment(
+    deployment: &Deployment,
+    hooks: &Vec<DeploymentHook>,
+) -> Vec<DeploymentHook> {
+    if let Some(ref labels) = deployment.metadata.labels {
+        hooks
+            .iter()
+            .filter(|hook| {
+                hook.spec
+                    .selector
+                    .labels
+                    .iter()
+                    .all(|hook_label| labels.get_key_value(hook_label.0) == Some(hook_label))
+            })
+            .cloned()
+            .collect()
+    } else {
+        vec![]
+    }
+}
+
 async fn watch_for_new_deployments(
     client: Client,
     hooks: Vec<DeploymentHook>,
@@ -54,46 +75,35 @@ async fn watch_for_new_deployments(
     let deployments = deployment_api.list(&params).await?.items;
 
     for deployment in deployments.iter() {
-        if let Some(ref labels) = deployment.metadata.labels {
-            let matching_hooks: Vec<DeploymentHook> =
-                hooks
-                    .iter()
-                    .filter(|hook| {
-                        hook.spec.selector.labels.iter().all(|hook_label| {
-                            labels.get_key_value(hook_label.0) == Some(hook_label)
-                        })
-                    })
-                    .cloned()
-                    .collect();
+        let matching_hooks = find_matching_deployment_hooks_for_deployment(deployment, &hooks);
 
-            for dh in matching_hooks.iter() {
-                println!(
-                    "MATCHED: DeployHook {:?}, Labels: {:?}",
-                    dh.metadata.name, dh.spec.selector.labels,
-                );
+        for dh in matching_hooks.iter() {
+            println!(
+                "MATCHED: DeployHook {:?}, Labels: {:?}",
+                dh.metadata.name, dh.spec.selector.labels,
+            );
 
-                let some_job = job::generate_from_template(
-                    dh.clone(),
-                    dh.get_pod_template(client.clone()).await?,
-                )?;
+            let some_job = job::generate_from_template(
+                dh.clone(),
+                dh.get_pod_template(client.clone()).await?,
+            )?;
 
-                let job_api: Api<Job> = Api::namespaced(
-                    client.clone(),
-                    &some_job.metadata.namespace.as_ref().unwrap(),
-                );
+            let job_api: Api<Job> = Api::namespaced(
+                client.clone(),
+                &some_job.metadata.namespace.as_ref().unwrap(),
+            );
 
-                println!(
-                    "------- JOB:\n{}",
-                    serde_yaml::to_string(&some_job).unwrap()
-                );
+            println!(
+                "------- JOB:\n{}",
+                serde_yaml::to_string(&some_job).unwrap()
+            );
 
-                job_api.create(&PostParams::default(), &some_job).await?;
+            job_api.create(&PostParams::default(), &some_job).await?;
 
-                continue;
-            }
-
-            println!("DEPLOYMENT: {labels:?}");
+            continue;
         }
+
+        println!("DEPLOYMENT: {:?}", deployment.metadata.labels);
     }
 
     Ok(())
