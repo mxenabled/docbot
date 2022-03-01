@@ -1,63 +1,37 @@
 use crate::crd::DeploymentHook;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
-use k8s_openapi::api::core::v1::PodTemplateSpec;
+use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-fn merge_deployment_hook_into_pod_template_spec(
-    hook: &DeploymentHook,
-    pod_template_spec: &PodTemplateSpec,
-) -> PodTemplateSpec {
-    let mut pts = pod_template_spec.clone();
-    if let Some(ref mut spec) = pts.spec {
-        for target_container in hook.spec.containers.iter() {
-            for pod_container in spec.containers.iter_mut() {
-                // Skip if this is not a target container
-                if pod_container.name != target_container.name {
-                    continue;
-                }
-
-                // Replace the commands of the target with the new hook commands.
-                pod_container.command = Some(target_container.command.clone());
-            }
-        }
-    }
-
-    pts
-}
-
-pub fn generate_from_deployment(
+pub fn generate_from_template(
     hook: DeploymentHook,
-    deployment: Deployment,
+    template: PodTemplate,
 ) -> Result<Job, Box<dyn std::error::Error>> {
     let mut job = Job::default();
-
-    // Copy metadata over to the new job.
     job.metadata = ObjectMeta::default();
-    job.metadata.annotations = deployment.metadata.annotations.clone();
+    job.metadata.annotations = template.metadata.annotations.clone();
     if let Some(ref mut annotations) = job.metadata.annotations {
-        annotations.remove("deployment.kubernetes.io/revision");
         annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
     }
-    job.metadata.labels = deployment.metadata.labels.clone();
-    job.metadata.namespace = deployment.metadata.namespace.clone();
-
-    // Reset the name and use generateName to ensure the job can always run.
-    job.metadata.name = None;
+    job.metadata.labels = template.metadata.labels.clone();
+    job.metadata.namespace = template.metadata.namespace.clone();
     job.metadata.generate_name = Some(format!(
         "docbot-hook-{}-",
         &hook.metadata.name.as_ref().expect("name is missing")
     ));
-
-    // The objective is to pluck the pod tempalte spec from a deployment, merge in changes
-    // from the deployment hook, and spawn a job with the new job template spec.
     let mut job_spec = JobSpec::default();
-    if let Some(deployment_spec) = deployment.spec {
-        let pod_template_spec = deployment_spec.template.clone();
-        job_spec.template = merge_deployment_hook_into_pod_template_spec(&hook, &pod_template_spec);
+    if let Some(pod_template_spec) = template.template {
+        job_spec.template = pod_template_spec.clone();
+        if let Some(ref mut spec) = job_spec.template.spec {
+            spec.restart_policy = Some(
+                spec.restart_policy
+                    .clone()
+                    .unwrap_or_else(|| "Never".to_string()),
+            )
+        }
     }
     job.spec = Some(job_spec);
-
     Ok(job)
 }
 
@@ -65,35 +39,33 @@ pub fn generate_from_deployment(
 mod test {
     use super::*;
 
-    fn example_deployment() -> Deployment {
+    fn example_pod_template() -> PodTemplate {
         let contents = r#"
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: PodTemplate
 metadata:
-  name: nginx-deployment
+  name: nginx-template
   namespace: docbot-test
   labels:
     app: nginx
-    apps.mx.com/deploymenthook: finished
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
+template:
+  metadata:
+    labels:
       app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2
-        envFrom:
-          - configMapRef:
-              name: config-nginx-test
-        ports:
-        - containerPort: 80
+  spec:
+    containers:
+    - name: nginx
+      image: nginx:1.14.2
+      command:
+        - sh
+        - "-c"
+        - "echo \"Running migrations...\"\necho \"Stopping istio...\"\ncurl -sf -XPOST http://127.0.0.1:15020/quitquitquit\necho \"Done\"\n"
+      envFrom:
+        - configMapRef:
+            name: config-nginx-test
+      ports:
+      - containerPort: 80
 "#;
 
         serde_yaml::from_str(contents).unwrap()
@@ -112,16 +84,8 @@ spec:
   selector:
     labels:
       apps.mx.com/deploymenthook: finished
-  containers:
-    - name: nginx
-      command:
-        - "sh"
-        - "-c"
-        - |
-          echo "Running migrations..."
-          echo "Stopping istio..."
-          curl -sf -XPOST http://127.0.0.1:15020/quitquitquit
-          echo "Done"
+  template:
+    name: nginx-template
 "#;
 
         serde_yaml::from_str(contents).unwrap()
@@ -129,9 +93,9 @@ spec:
 
     #[test]
     fn generating_job_from_deployment_and_hook() {
-        let deployment = example_deployment();
+        let template = example_pod_template();
         let hook = example_deployment_hook();
-        let job = generate_from_deployment(hook, deployment).unwrap();
+        let job = generate_from_template(hook, template).unwrap();
 
         let expected_contents = r#"
 ---
@@ -141,7 +105,6 @@ metadata:
   generateName: docbot-hook-run-app-migrations-
   labels:
     app: nginx
-    apps.mx.com/deploymenthook: finished
   namespace: docbot-test
 spec:
   template:
@@ -149,6 +112,7 @@ spec:
       labels:
         app: nginx
     spec:
+      restartPolicy: Never
       containers:
         - command:
             - sh

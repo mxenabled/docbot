@@ -25,7 +25,7 @@ spec:
           properties:
             spec:
               type: object
-              required: ["debounceSeconds", "selector", "containers"]
+              required: ["debounceSeconds", "selector", "template"]
               properties:
                 # Amount of time to debounce in case multiple deployments match the same name
                 debounceSeconds:
@@ -39,18 +39,11 @@ spec:
                     labels:
                       type: object
                       additionalProperties: true
-                # Container overrides
-                containers:
-                  type: array
-                  items:
-                    type: object
-                    required: ["name", "command"]
-                    properties:
-                      # Name of container to overrides
-                      name:
-                        type: string
-                      # New command name of the container
-                      command:
-                        type: array
-                        items:
-                          type: string
+
+                # Template
+                template:
+                  type: object
+                  required: ["name"]
+                  properties:
+                    name:
+                      type: string

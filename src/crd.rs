@@ -1,4 +1,6 @@
+use k8s_openapi::api::core::v1::PodTemplate;
 use kube::CustomResource;
+use kube::{api::ListParams, client::Client, core::WatchEvent, Api};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -18,9 +20,9 @@ use std::collections::BTreeMap;
     namespaced
 )]
 pub struct DeploymentHookSpec {
-    pub containers: Vec<TargetContainer>,
     pub debounce_seconds: u64,
     pub selector: DeploymentSelector,
+    pub template: InternalPodTemplate,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
@@ -29,7 +31,24 @@ pub struct DeploymentSelector {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
-pub struct TargetContainer {
+pub struct InternalPodTemplate {
     pub name: String,
-    pub command: Vec<String>,
+}
+
+impl DeploymentHook {
+    pub async fn get_pod_template(
+        &self,
+        client: Client,
+    ) -> Result<PodTemplate, Box<dyn std::error::Error>> {
+        let pod_template_api: Api<PodTemplate> = Api::namespaced(
+            client,
+            &self
+                .metadata
+                .namespace
+                .clone()
+                .unwrap_or_else(|| "default".to_string()),
+        );
+
+        Ok(pod_template_api.get(&self.spec.template.name).await?)
+    }
 }

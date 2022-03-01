@@ -8,19 +8,5 @@ spec:
   selector:
     labels:
       apps.mx.com/deploymenthook: finished
-  containers:
-    - name: haproxy
-      command:
-        - "sh"
-        - "-c"
-        - |
-          echo "Hi there!"
-    - name: nginx
-      command:
-        - "sh"
-        - "-c"
-        - |
-          echo "Running migrations..."
-          echo "Stopping istio..."
-          curl -sf -XPOST http://127.0.0.1:15020/quitquitquit
-          echo "Done"
+  template:
+    name: nginx-pod-template

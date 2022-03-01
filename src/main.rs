@@ -4,7 +4,12 @@ use k8s_openapi::api::apps::v1::{Deployment, DeploymentStatus};
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::PodTemplateSpec;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-use kube::{api::ListParams, client::Client, core::WatchEvent, Api};
+use kube::{
+    api::{ListParams, PostParams},
+    client::Client,
+    core::WatchEvent,
+    Api,
+};
 use kube_runtime::controller::{Context, ReconcilerAction};
 
 mod crd;
@@ -67,7 +72,18 @@ async fn watch_for_new_deployments(
                     dh.metadata.name, dh.spec.selector.labels,
                 );
 
-                let some_job = job::generate_from_deployment(dh.clone(), deployment.clone())?;
+                let some_job = job::generate_from_template(
+                    dh.clone(),
+                    dh.get_pod_template(client.clone()).await?,
+                )?;
+
+                let job_api: Api<Job> = Api::namespaced(
+                    client.clone(),
+                    &some_job.metadata.namespace.as_ref().unwrap(),
+                );
+
+                job_api.create(&PostParams::default(), &some_job).await?;
+
                 println!(
                     "------- JOB:\n{}",
                     serde_yaml::to_string(&some_job).unwrap()
