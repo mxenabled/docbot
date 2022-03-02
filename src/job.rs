@@ -5,7 +5,7 @@ use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 pub fn generate_from_template(
-    hook: DeploymentHook,
+    hook: &DeploymentHook,
     template: PodTemplate,
 ) -> Result<Job, Box<dyn std::error::Error>> {
     let mut job = Job::default();
@@ -101,7 +101,7 @@ spec:
     fn generating_job_from_deployment_and_hook() {
         let template = example_pod_template();
         let hook = example_deployment_hook();
-        let job = generate_from_template(hook, template).unwrap();
+        let job = generate_from_template(&hook, template).unwrap();
 
         let expected_contents = r#"
 ---

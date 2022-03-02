@@ -36,21 +36,35 @@ fn find_matching_deployment_hooks_for_deployment(
     deployment: &Deployment,
     hooks: &Vec<DeploymentHook>,
 ) -> Vec<DeploymentHook> {
-    if let Some(ref labels) = deployment.metadata.labels {
-        hooks
-            .iter()
-            .filter(|hook| {
-                hook.spec
-                    .selector
-                    .labels
-                    .iter()
-                    .all(|hook_label| labels.get_key_value(hook_label.0) == Some(hook_label))
-            })
-            .cloned()
-            .collect()
-    } else {
-        vec![]
-    }
+    hooks
+        .iter()
+        .filter(|hook| hook.does_match_deployment(deployment))
+        .cloned()
+        .collect()
+}
+
+async fn create_job_for_deployment_hook(
+    client: Client,
+    hook: &DeploymentHook,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let generated_job =
+        job::generate_from_template(hook, hook.get_pod_template(client.clone()).await?)?;
+
+    let job_api: Api<Job> = Api::namespaced(
+        client.clone(),
+        &generated_job.metadata.namespace.as_ref().unwrap(),
+    );
+
+    println!(
+        "------- JOB:\n{}",
+        serde_yaml::to_string(&generated_job).unwrap()
+    );
+
+    job_api
+        .create(&PostParams::default(), &generated_job)
+        .await?;
+
+    Ok(())
 }
 
 async fn watch_for_new_deployments(
@@ -60,50 +74,29 @@ async fn watch_for_new_deployments(
     let deployment_api: Api<Deployment> = Api::all(client.clone());
     let params = ListParams::default().labels("apps.mx.com/deploymenthook");
 
-    // let resource_version = deployment_api
-    //     .list(&params)
-    //     .await?
-    //     .metadata
-    //     .resource_version
-    //     .expect("invalid call");
+    let resource_version = deployment_api
+        .list(&params)
+        .await?
+        .metadata
+        .resource_version
+        .expect("invalid call");
 
-    // let mut stream = deployment_api
-    //     .watch(&params, &resource_version)
-    //     .await?
-    //     .boxed();
+    let mut stream = deployment_api
+        .watch(&params, &resource_version)
+        .await?
+        .boxed();
+
+    println!("Current Deployment API ResrouceVersion: {resource_version}",);
+    drop(stream);
 
     let deployments = deployment_api.list(&params).await?.items;
 
     for deployment in deployments.iter() {
-        let matching_hooks = find_matching_deployment_hooks_for_deployment(deployment, &hooks);
-
-        for dh in matching_hooks.iter() {
-            println!(
-                "MATCHED: DeployHook {:?}, Labels: {:?}",
-                dh.metadata.name, dh.spec.selector.labels,
-            );
-
-            let some_job = job::generate_from_template(
-                dh.clone(),
-                dh.get_pod_template(client.clone()).await?,
-            )?;
-
-            let job_api: Api<Job> = Api::namespaced(
-                client.clone(),
-                &some_job.metadata.namespace.as_ref().unwrap(),
-            );
-
-            println!(
-                "------- JOB:\n{}",
-                serde_yaml::to_string(&some_job).unwrap()
-            );
-
-            job_api.create(&PostParams::default(), &some_job).await?;
-
-            continue;
-        }
-
         println!("DEPLOYMENT: {:?}", deployment.metadata.labels);
+
+        for hook in find_matching_deployment_hooks_for_deployment(deployment, &hooks).iter() {
+            create_job_for_deployment_hook(client.clone(), hook).await?;
+        }
     }
 
     Ok(())

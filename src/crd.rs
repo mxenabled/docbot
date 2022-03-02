@@ -1,3 +1,4 @@
+use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::CustomResource;
 use kube::{api::ListParams, client::Client, core::WatchEvent, Api};
@@ -50,5 +51,17 @@ impl DeploymentHook {
         );
 
         Ok(pod_template_api.get(&self.spec.template.name).await?)
+    }
+
+    pub fn does_match_deployment(&self, deployment: &Deployment) -> bool {
+        if let Some(ref labels) = deployment.metadata.labels {
+            self.spec
+                .selector
+                .labels
+                .iter()
+                .all(|hook_label| labels.get_key_value(hook_label.0) == Some(hook_label))
+        } else {
+            false
+        }
     }
 }
