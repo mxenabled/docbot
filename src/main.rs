@@ -1,3 +1,4 @@
+use crate::cache::DeploymentHookCache;
 use crd::DeploymentHook;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::{Deployment, DeploymentStatus};
@@ -12,6 +13,7 @@ use kube::{
 };
 use kube_runtime::controller::{Context, ReconcilerAction};
 
+mod cache;
 mod crd;
 mod job;
 
@@ -30,17 +32,6 @@ impl ContextData {
     pub fn new(client: Client) -> Self {
         ContextData { client }
     }
-}
-
-fn find_matching_deployment_hooks_for_deployment(
-    deployment: &Deployment,
-    hooks: &Vec<DeploymentHook>,
-) -> Vec<DeploymentHook> {
-    hooks
-        .iter()
-        .filter(|hook| hook.does_match_deployment(deployment))
-        .cloned()
-        .collect()
 }
 
 async fn create_job_for_deployment_hook(
@@ -69,7 +60,7 @@ async fn create_job_for_deployment_hook(
 
 async fn watch_for_new_deployments(
     client: Client,
-    hooks: Vec<DeploymentHook>,
+    cache: DeploymentHookCache,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let deployment_api: Api<Deployment> = Api::all(client.clone());
     let params = ListParams::default().labels("apps.mx.com/deploymenthook");
@@ -94,13 +85,14 @@ async fn watch_for_new_deployments(
     for deployment in deployments.iter() {
         println!("DEPLOYMENT: {:?}", deployment.metadata.labels);
 
-        for hook in find_matching_deployment_hooks_for_deployment(deployment, &hooks).iter() {
+        for hook in cache.find_by_matching_deployment(deployment).iter() {
             create_job_for_deployment_hook(client.clone(), hook).await?;
         }
     }
 
     Ok(())
 }
+// async fn referesh_deployment_hook_cache(hook_cache: Arc<Mutex<DeploymentHookCache>>) {}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -108,16 +100,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Expected a valid KUBECONFIG environment variable.");
 
-    // watch_for_new_deployments(client.clone()).await;
-
-    let dh_api: Api<DeploymentHook> = Api::all(client.clone());
     let context: Context<ContextData> = Context::new(ContextData::new(client.clone()));
 
-    let deployment_hooks = dh_api.list(&ListParams::default()).await?.items;
+    let cache = cache::DeploymentHookCache::default();
+    cache.refresh(client.clone()).await?;
 
-    // println!("HOOKS: {:?}", &deployment_hooks);
+    println!("HOOKS: {:?}", cache);
 
-    watch_for_new_deployments(client.clone(), deployment_hooks).await?;
+    watch_for_new_deployments(client.clone(), cache.clone()).await?;
 
     //    // TODO: Is there a way to get a list of all deployment hooks across all namespaces, begin
     //    // the reconiliation of those, and then start consuming new bits? We will need to create a
