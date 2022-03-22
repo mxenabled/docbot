@@ -1,0 +1,31 @@
+---
+image: docker:latest
+
+variables:
+  MX_REGISTRY: docker-local.artifactory.internal.mx
+  MX_REGISTRY_IMAGE: ${MX_REGISTRY}/mx/platform/docbot
+  IMG: ${MX_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+  ARTIFACTORY_URL: "https://docker-local.artifactory.internal.mx/"
+
+build-feature:
+  only:
+    - pipelines
+  before_script:
+    - docker login -u gitlabci -p "{JWT}${CI_JOB_JWT}" $MX_REGISTRY
+  script:
+    - docker build -t "$IMG" .
+    - docker push "$IMG"
+
+build:
+  only:
+    - master
+  except:
+    - pipelines
+
+  stage: build
+  image: docker:latest
+  before_script:
+    - docker login -u gitlabci -p "{JWT}${CI_JOB_JWT}" $MX_REGISTRY
+  script:
+    - docker build -t "$IMG" .
+    - docker push "$IMG"
