@@ -9,4 +9,4 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/docbot /srv/docbot/docbot
 WORKDIR /srv/docbot
-CMD ["/srv/docbot/docbot"]
+ENTRYPOINT ["/srv/docbot/docbot"]
