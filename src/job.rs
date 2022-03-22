@@ -1,5 +1,4 @@
 use crate::crd::DeploymentHook;
-use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;

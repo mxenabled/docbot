@@ -10,7 +10,7 @@ pub struct DeploymentHookCache {
 }
 
 impl DeploymentHookCache {
-    pub async fn refresh(&self, client: Client) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn refresh(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         let api: Api<DeploymentHook> = Api::all(client.clone());
         let hooks: BTreeMap<(String, String), DeploymentHook> = api
             .list(&ListParams::default())
@@ -34,30 +34,11 @@ impl DeploymentHookCache {
     }
 
     pub fn find_by_matching_deployment(&self, deployment: &Deployment) -> Vec<DeploymentHook> {
-        let mut cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock().unwrap();
         cache
             .values()
             .filter(|hook| hook.does_match_deployment(deployment))
             .cloned()
             .collect()
-    }
-
-    pub fn insert(&mut self, hook: DeploymentHook) {
-        let mut cache = self.cache.lock().unwrap();
-        cache.insert(
-            (
-                hook.metadata.namespace.clone().expect("must have a name"),
-                hook.metadata.name.clone().expect("must have a namespace"),
-            ),
-            hook,
-        );
-    }
-
-    pub fn remove(&mut self, hook: DeploymentHook) {
-        let mut cache = self.cache.lock().unwrap();
-        cache.remove(&(
-            hook.metadata.namespace.clone().expect("must have a name"),
-            hook.metadata.name.clone().expect("must have a namespace"),
-        ));
     }
 }

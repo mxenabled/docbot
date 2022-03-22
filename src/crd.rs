@@ -1,7 +1,7 @@
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::CustomResource;
-use kube::{api::ListParams, client::Client, core::WatchEvent, Api};
+use kube::{client::Client, Api};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

@@ -7,6 +7,6 @@ spec:
   debounceSeconds: 30
   selector:
     labels:
-      apps.mx.com/deploymenthook: finished
+      app: nginx
   template:
     name: nginx-pod-template
