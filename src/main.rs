@@ -150,6 +150,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = cache::DeploymentHookCache::default();
     cache.refresh(&client).await?;
 
+    use kube::CustomResourceExt;
+    println!("{}", serde_yaml::to_string(&DeploymentHook::crd()).unwrap());
+
     // Refresh the cache every minute
     tokio::spawn({
         let cache = cache.clone();
