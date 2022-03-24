@@ -1,5 +1,5 @@
 use crate::cache::DeploymentHookCache;
-use crd::DeploymentHook;
+use docbot_crd::DeploymentHook;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::Job;
@@ -12,7 +12,6 @@ use kube::{
 };
 
 mod cache;
-mod crd;
 mod job;
 
 // Helper to print namspace/name in a nice way since we do that a lot.
@@ -149,9 +148,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Prime the deployhook cache
     let cache = cache::DeploymentHookCache::default();
     cache.refresh(&client).await?;
-
-    use kube::CustomResourceExt;
-    println!("{}", serde_yaml::to_string(&DeploymentHook::crd()).unwrap());
 
     // Refresh the cache every minute
     tokio::spawn({
