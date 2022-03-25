@@ -1,4 +1,4 @@
-use crate::crd::DeploymentHook;
+use docbot_crd::DeploymentHook;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -85,7 +85,6 @@ metadata:
   name: run-app-migrations
   namespace: docbot-test
 spec:
-  debounceSeconds: 30
   selector:
     labels:
       apps.mx.com/deploymenthook: finished

@@ -1,0 +1,21 @@
+[package]
+name = "docbot-controller"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+docbot-crd = { path = "../docbot-crd" }
+futures = "0.3.19"
+k8s-openapi = { version = "0.13", default-features = false, features = ["v1_17", "schemars"] } # Kube-rs depends on k8s-openapi
+kube = { version = "0.65", default-features = true, features = ["derive"] } # Library for talking to Kubernetes API
+serde = "1"
+serde_yaml = "0.8"
+tokio = { version = "1.15.0", features = ["full"] }
+
+[build-dependencies]
+docbot-crd = { path = "../docbot-crd" }
+kube = { version = "0.65", default-features = true, features = ["derive"] } # Library for talking to Kubernetes API
+serde = "1"
+serde_yaml = "0.8"

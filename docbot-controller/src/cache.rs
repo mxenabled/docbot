@@ -1,4 +1,4 @@
-use crate::crd::DeploymentHook;
+use docbot_crd::DeploymentHook;
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::{api::ListParams, client::Client, Api};
 use std::collections::BTreeMap;

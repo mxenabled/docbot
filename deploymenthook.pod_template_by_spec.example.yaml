@@ -1,0 +1,30 @@
+apiVersion: apps.mx.com/v1
+kind: DeploymentHook
+metadata:
+  name: run-app-migrations-with-spec
+  namespace: docbot-test
+spec:
+  selector:
+    labels:
+      app: nginx
+  template:
+    spec:
+      metadata:
+        labels:
+          app: nginx
+      spec:
+        containers:
+        - name: nginx
+          image: nginx:1.14.2
+          command:
+            - "sh"
+            - "-c"
+            - |
+              echo "Doing some work..."
+              echo "Still working on it..."
+              echo "Done!"
+          envFrom:
+            - configMapRef:
+                name: config-nginx-test
+          ports:
+          - containerPort: 80

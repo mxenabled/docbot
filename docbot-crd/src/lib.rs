@@ -1,5 +1,7 @@
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
+use k8s_openapi::api::core::v1::PodTemplateSpec;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::CustomResource;
 use kube::{client::Client, Api};
 use schemars::JsonSchema;
@@ -21,7 +23,6 @@ use std::collections::BTreeMap;
     namespaced
 )]
 pub struct DeploymentHookSpec {
-    pub debounce_seconds: u64,
     pub selector: DeploymentSelector,
     pub template: InternalPodTemplate,
 }
@@ -33,7 +34,8 @@ pub struct DeploymentSelector {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
 pub struct InternalPodTemplate {
-    pub name: String,
+    pub name: Option<String>,
+    pub spec: Option<PodTemplateSpec>,
 }
 
 impl DeploymentHook {
@@ -41,6 +43,19 @@ impl DeploymentHook {
         &self,
         client: Client,
     ) -> Result<PodTemplate, Box<dyn std::error::Error>> {
+        // Check to see if the template was embedded in the struct.
+        if let Some(ref template) = self.spec.template.spec {
+            // HACK: Mock a PodTemplate for now to keep things simple.
+            return Ok(PodTemplate {
+                metadata: ObjectMeta {
+                    namespace: self.metadata.namespace.clone(),
+                    ..ObjectMeta::default()
+                },
+                template: Some(template.clone()),
+            });
+        }
+
+        // Otherwise use the name to look it up via the k9s api.
         let pod_template_api: Api<PodTemplate> = Api::namespaced(
             client,
             &self
@@ -50,7 +65,15 @@ impl DeploymentHook {
                 .unwrap_or_else(|| "default".to_string()),
         );
 
-        Ok(pod_template_api.get(&self.spec.template.name).await?)
+        if let Some(ref name) = self.spec.template.name {
+            return Ok(pod_template_api.get(&name).await?);
+        }
+
+        Err(format!(
+            "Could not find a way to return a pod template for deployment hook {:?}",
+            self.metadata.name
+        )
+        .into())
     }
 
     pub fn does_match_deployment(&self, deployment: &Deployment) -> bool {
