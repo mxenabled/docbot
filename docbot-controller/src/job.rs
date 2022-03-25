@@ -85,7 +85,6 @@ metadata:
   name: run-app-migrations
   namespace: docbot-test
 spec:
-  debounceSeconds: 30
   selector:
     labels:
       apps.mx.com/deploymenthook: finished
