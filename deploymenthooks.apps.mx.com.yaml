@@ -34,6 +34,7 @@ spec:
                 template:
                   properties:
                     name:
+                      nullable: true
                       type: string
                     spec:
                       description: PodTemplateSpec describes the data a pod should have when created from a template
@@ -3605,8 +3606,6 @@ spec:
                             - containers
                           type: object
                       type: object
-                  required:
-                    - name
                   type: object
               required:
                 - selector
