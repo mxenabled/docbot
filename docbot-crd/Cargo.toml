@@ -6,13 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.15.0", features = ["full"] }
-futures = "0.3.19"
-serde = "1"
-serde_json = "1.0"
-serde_yaml = "0.8"
-schemars = "0.8"
-
 k8s-openapi = { version = "0.13", default-features = false, features = ["v1_17", "schemars"] } # Kube-rs depends on k8s-openapi
 kube = { version = "0.65", default-features = true, features = ["derive"] } # Library for talking to Kubernetes API
 kube-runtime = "0.65"
+schemars = "0.8"
+serde = "1"
+serde_json = "1.0"
