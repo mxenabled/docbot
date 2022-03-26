@@ -7,15 +7,12 @@ metadata:
 spec:
   group: apps.mx.com
   names:
-    categories: []
     kind: DeploymentHook
     plural: deploymenthooks
-    shortNames: []
     singular: deploymenthook
   scope: Namespaced
   versions:
-    - additionalPrinterColumns: []
-      name: v1
+    - name: v1
       schema:
         openAPIV3Schema:
           description: "Auto-generated derived type for DeploymentHookSpec via `CustomResource`"
