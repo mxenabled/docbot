@@ -6,8 +6,6 @@ use std::path::Path;
 
 fn main() {
     let mut crd = DeploymentHook::crd();
-    // NOTE: The namespace "default" is expected for a namespaced CRD?
-    crd.metadata.namespace = Some("default".into());
 
     // These fields show up as Some([]) in rust, but go will exclude because
     // they are zero values. If you see Argo continue to cause issues sync'ing,
