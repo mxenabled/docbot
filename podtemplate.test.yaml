@@ -8,6 +8,8 @@ metadata:
     app: nginx
 template:
   metadata:
+    annotations:
+      yolo: brolo
     labels:
       app: nginx
   spec:

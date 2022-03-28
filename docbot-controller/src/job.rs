@@ -9,7 +9,6 @@ pub fn generate_from_template(
 ) -> Result<Job, Box<dyn std::error::Error>> {
     let mut job = Job::default();
     job.metadata = ObjectMeta::default();
-    job.metadata.annotations = template.metadata.annotations.clone();
     if let Some(ref mut annotations) = job.metadata.annotations {
         annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
     }
@@ -21,6 +20,10 @@ pub fn generate_from_template(
     ));
     let mut job_spec = JobSpec::default();
     if let Some(pod_template_spec) = template.template {
+        if let Some(ref metadata) = pod_template_spec.metadata {
+            job.metadata.annotations = metadata.annotations.clone();
+        }
+
         job_spec.template = pod_template_spec.clone();
         if let Some(ref mut spec) = job_spec.template.spec {
             // Reset this value of Always was specified. This is the default value for
