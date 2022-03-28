@@ -19,6 +19,10 @@ pub fn generate_from_template(
         &hook.metadata.name.as_ref().expect("name is missing")
     ));
     let mut job_spec = JobSpec::default();
+
+    // Set the job ttl after it finishes.
+    job_spec.ttl_seconds_after_finished = hook.spec.template.ttl_seconds_after_finished;
+
     if let Some(pod_template_spec) = template.template {
         if let Some(ref metadata) = pod_template_spec.metadata {
             job.metadata.annotations = metadata.annotations.clone();
