@@ -3603,6 +3603,11 @@ spec:
                             - containers
                           type: object
                       type: object
+                    ttlSecondsAfterFinished:
+                      default: 259200
+                      format: int32
+                      nullable: true
+                      type: integer
                   type: object
               required:
                 - selector

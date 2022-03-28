@@ -8,6 +8,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// The default job ttl is 72 hours.
+fn default_job_ttl_seconds_after_finished() -> Option<i32> {
+    Some(259200)
+}
+
 /// Struct corresponding to the Specification (`spec`) part of the `DeploymentHook` resource,
 /// directly reflects context of the `deploymenthooks.apps.mx.com.yaml` file to be found in
 /// this repository.
@@ -28,12 +33,16 @@ pub struct DeploymentHookSpec {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct DeploymentSelector {
     pub labels: BTreeMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct InternalPodTemplate {
+    #[serde(default = "default_job_ttl_seconds_after_finished")]
+    pub ttl_seconds_after_finished: Option<i32>,
     pub name: Option<String>,
     pub spec: Option<PodTemplateSpec>,
 }
