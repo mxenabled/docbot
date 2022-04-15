@@ -2,6 +2,7 @@ use docbot_crd::DeploymentHook;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use kube::Resource;
 
 pub fn generate_from_template(
     hook: &DeploymentHook,
@@ -18,6 +19,12 @@ pub fn generate_from_template(
         "docbot-hook-{}-",
         &hook.metadata.name.as_ref().expect("name is missing")
     ));
+
+    // Set owner reference so job is a child of the hook resource that spawned it
+    if let Some(owner_ref) = hook.controller_owner_ref(&()) {
+        job.metadata.owner_references = Some(vec![owner_ref]);
+    }
+
     let mut job_spec = JobSpec::default();
 
     // Set the job ttl after it finishes.
@@ -91,6 +98,7 @@ kind: DeploymentHook
 metadata:
   name: run-app-migrations
   namespace: docbot-test
+  uid: 1234
 spec:
   selector:
     labels:
@@ -117,7 +125,14 @@ metadata:
   labels:
     app: nginx
   namespace: docbot-test
+  ownerReferences:
+  - apiVersion: "apps.mx.com/v1"
+    controller: true
+    kind: "DeploymentHook"
+    name: "run-app-migrations"
+    uid: "1234"
 spec:
+  ttlSecondsAfterFinished: 259200
   template:
     metadata:
       labels:
