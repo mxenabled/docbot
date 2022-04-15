@@ -2,6 +2,7 @@ use docbot_crd::DeploymentHook;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use kube::Resource;
 
 pub fn generate_from_template(
     hook: &DeploymentHook,
@@ -18,6 +19,11 @@ pub fn generate_from_template(
         "docbot-hook-{}-",
         &hook.metadata.name.as_ref().expect("name is missing")
     ));
+    
+    // Set owner reference so job is a child of the hook resource that spawned it
+    let oref = hook.controller_owner_ref(&()).unwrap();
+    job.metadata.owner_references = Some(vec![oref]);
+
     let mut job_spec = JobSpec::default();
 
     // Set the job ttl after it finishes.
