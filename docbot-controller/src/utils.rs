@@ -1,10 +1,13 @@
 use k8s_openapi::api::apps::v1::Deployment;
+use sha2::{Digest, Sha256};
 
-pub trait DeploymentStatusUtil {
+pub trait DeploymentExt {
     fn did_successfully_deploy(&self) -> bool;
+
+    fn pod_template_hash(&self) -> Option<String>;
 }
 
-impl DeploymentStatusUtil for Deployment {
+impl DeploymentExt for Deployment {
     fn did_successfully_deploy(&self) -> bool {
         // Check to see if the deployment has finished
         if let (Some(status), Some(spec)) = (self.status.as_ref(), self.spec.as_ref()) {
@@ -19,5 +22,17 @@ impl DeploymentStatusUtil for Deployment {
         }
 
         return false;
+    }
+
+    fn pod_template_hash(&self) -> Option<String> {
+        if let Some(spec) = self.spec.as_ref() {
+            if let Some(ref pod_spec) = spec.template.spec {
+                let payload = serde_yaml::to_string(pod_spec).expect("will always be valid");
+
+                return Some(format!("{:X}", Sha256::digest(payload)));
+            }
+        }
+
+        None
     }
 }

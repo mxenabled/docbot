@@ -1,4 +1,4 @@
-use crate::cache::DeploymentHookCache;
+use crate::cache::{CacheOp, DeploymentHookCache, DeploymentPodTemplateHashCache};
 use docbot_crd::DeploymentHook;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::Deployment;
@@ -10,7 +10,7 @@ use kube::{
     core::WatchEvent,
     Api,
 };
-use utils::DeploymentStatusUtil;
+use utils::DeploymentExt;
 
 mod cache;
 mod job;
@@ -58,6 +58,7 @@ async fn create_job_for_deployment_hook(
 async fn watch_for_new_deployments(
     client: Client,
     cache: DeploymentHookCache,
+    template_cache: DeploymentPodTemplateHashCache,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let deployment_api: Api<Deployment> = Api::all(client.clone());
     let params = ListParams::default().labels("apps.mx.com/deploymenthook");
@@ -82,7 +83,19 @@ async fn watch_for_new_deployments(
     while let Some(event) = stream.try_next().await? {
         match event {
             WatchEvent::Added(deployment) | WatchEvent::Modified(deployment) => {
+                // If the deployment hasn't finished, we should skip.
                 if !deployment.did_successfully_deploy() {
+                    continue;
+                }
+
+                // With a successfully deployed deployment, check to see if we've seen
+                // this pod template before. If we have, then it is likely a pod of an
+                // existing deployment was restarted, or scaled up or down.
+                if let CacheOp::Unchanged = template_cache.update_cache(&deployment) {
+                    println!(
+                        "Skipping deployment {} because pod template was not modified",
+                        deployment.metadata.formatted_name()
+                    );
                     continue;
                 }
 
@@ -141,6 +154,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = cache::DeploymentHookCache::default();
     cache.refresh(&client).await?;
 
+    let template_cache = cache::DeploymentPodTemplateHashCache::default();
+
     // Refresh the cache every minute
     tokio::spawn({
         let cache = cache.clone();
@@ -184,7 +199,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         async move {
             // Watch for deployment changes
             loop {
-                if let Err(err) = watch_for_new_deployments(client.clone(), cache.clone()).await {
+                if let Err(err) =
+                    watch_for_new_deployments(client.clone(), cache.clone(), template_cache.clone())
+                        .await
+                {
                     println!("Error while watching deployment hook changes: {err:?}");
                 }
 
