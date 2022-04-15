@@ -19,10 +19,11 @@ pub fn generate_from_template(
         "docbot-hook-{}-",
         &hook.metadata.name.as_ref().expect("name is missing")
     ));
-    
+
     // Set owner reference so job is a child of the hook resource that spawned it
-    let oref = hook.controller_owner_ref(&()).unwrap();
-    job.metadata.owner_references = Some(vec![oref]);
+    if let Some(owner_ref) = hook.controller_owner_ref(&()) {
+        job.metadata.owner_references = Some(vec![owner_ref]);
+    }
 
     let mut job_spec = JobSpec::default();
 
@@ -97,6 +98,7 @@ kind: DeploymentHook
 metadata:
   name: run-app-migrations
   namespace: docbot-test
+  uid: 1234
 spec:
   selector:
     labels:
@@ -123,7 +125,14 @@ metadata:
   labels:
     app: nginx
   namespace: docbot-test
+  ownerReferences:
+  - apiVersion: "apps.mx.com/v1"
+    controller: true
+    kind: "DeploymentHook"
+    name: "run-app-migrations"
+    uid: "1234"
 spec:
+  ttlSecondsAfterFinished: 259200
   template:
     metadata:
       labels:
