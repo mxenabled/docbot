@@ -55,6 +55,17 @@ pub struct DeploymentPodTemplateHashCache {
 }
 
 impl DeploymentPodTemplateHashCache {
+    pub async fn refresh(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        let api: Api<Deployment> = Api::all(client.clone());
+        let deployments = api.list(&ListParams::default()).await?;
+
+        for deployment in deployments.items.iter() {
+            self.update_cache(&deployment);
+        }
+
+        Ok(())
+    }
+
     pub fn update_cache(&self, deployment: &Deployment) -> CacheOp {
         let mut cache = self.cache.lock().unwrap();
         let key = (

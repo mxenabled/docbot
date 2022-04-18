@@ -154,7 +154,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = cache::DeploymentHookCache::default();
     cache.refresh(&client).await?;
 
+    // Prime the deployment cache
     let template_cache = cache::DeploymentPodTemplateHashCache::default();
+    template_cache.refresh(&client).await?;
 
     // Refresh the cache every minute
     tokio::spawn({
