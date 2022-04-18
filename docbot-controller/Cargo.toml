@@ -13,6 +13,7 @@ kube = { version = "0.71.0", features = ["derive"] } # Library for talking to Ku
 serde = "1"
 serde_yaml = "0.8"
 tokio = { version = "1.15.0", features = ["full"] }
+sha2 = "0.10"
 
 [build-dependencies]
 docbot-crd = { path = "../docbot-crd" }
