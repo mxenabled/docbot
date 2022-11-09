@@ -71,7 +71,7 @@ async fn watch_for_new_deployments(
         .expect("invalid call");
 
     println!(
-        "Current Deployment API ResrouceVersion: {}, Subscribing...",
+        "Current Deployment API ResourceVersion: {}, Subscribing...",
         &resource_version
     );
 
