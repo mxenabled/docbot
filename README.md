@@ -22,14 +22,16 @@ These jobs will run until completion and not be reaped by docbot, so it's encour
 
 ## Building
 
-```
-cd pod-controller && cargo build
-```
-
-or you can run locally by setting `export KUBECOFIG=~/.kube/teleport` followed by
+Build locally via:
 
 ```
-cd pod-controller && cargo run
+cargo build
+```
+
+Run locally via (NOTE: Make sure your KUBECONFIG is set):
+
+```
+cargo run
 ```
 
 ## Custom Resources
