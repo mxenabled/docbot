@@ -49,6 +49,8 @@ pub fn generate_from_template(
                     .unwrap_or_else(|| "Never".to_string()),
             )
         }
+        // On Error reduce the back-off limit to 1 to stop k8s from re-trying the errored out jobs
+        job_spec.backoff_limit = Some(1)
     }
     job.spec = Some(job_spec);
     Ok(job)
@@ -133,6 +135,7 @@ metadata:
     uid: "1234"
 spec:
   ttlSecondsAfterFinished: 259200
+  backoffLimit: 1
   template:
     metadata:
       labels:
