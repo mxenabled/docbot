@@ -74,7 +74,6 @@ impl DeploymentHook {
         );
 
         if let Some(ref name) = self.spec.template.name {
-            println!("Debug: asking k8s the podtemplate for {}", name);
             let specific_pod_template = pod_template_api.get(&name).await?;
             // Print containers and their images
             if let Some(template) = &specific_pod_template.template {
