@@ -79,7 +79,7 @@ impl DeploymentHook {
             if let Some(template) = &specific_pod_template.template {
                 if let Some(pod_spec) = &template.spec {
                     for container in &pod_spec.containers {
-                        println!("Debug: Container Image for {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
+                        println!("Debug: Container Image for template {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
                     }
                 }
             } else {
