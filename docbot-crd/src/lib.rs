@@ -63,8 +63,7 @@ impl DeploymentHook {
                 template: Some(template.clone()),
             });
         }
-
-        // Otherwise use the name to look it up via the k9s api.
+        // Otherwise use the name to look it up via the k8s api.
         let pod_template_api: Api<PodTemplate> = Api::namespaced(
             client,
             &self
@@ -75,7 +74,19 @@ impl DeploymentHook {
         );
 
         if let Some(ref name) = self.spec.template.name {
-            return Ok(pod_template_api.get(&name).await?);
+            println!("Debug: asking k8s the podtemplate for {}", name);
+            let specific_pod_template = pod_template_api.get(&name).await?;
+            // Print containers and their images
+            if let Some(template) = &specific_pod_template.template {
+                if let Some(pod_spec) = &template.spec {
+                    for container in &pod_spec.containers {
+                        println!("Debug: Container Image frome k8s api {} : {:?}",container.name, container.image);
+                    }
+                }
+            } else {
+                println!("Debug: No PodTemplate spec found for '{}'", name);
+            }
+            return Ok(specific_pod_template);
         }
 
         Err(format!(
