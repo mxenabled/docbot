@@ -9,7 +9,7 @@ Welcome to the real world.
 
 At MX we needed to run a job after a deployment successfully rolled out.
 The primary use case was running migrations after a deploy.
-We tried using ArgoCD hooks to run those wouldn't wait for a deployment, and we had to delete the job before we could re-run after a deploy, meaning if it was a long running migration, like creating an index, it would be terminated half way through execution.
+We tried using ArgoCD hooks to run those wouldn't wait for a deployment, and we had to delete the job before we could re-run after a deploy, meaning if it was a long-running migration, like creating an index, it would be terminated halfway through execution.
 Not good.
 We looked at other operators but couldn't find anything simple that we could run to solve this problem, so we created docbot.
 

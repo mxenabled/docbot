@@ -73,12 +73,8 @@ impl DeploymentPodTemplateHashCache {
                 .metadata
                 .namespace
                 .clone()
-                .expect("must have a name"),
-            deployment
-                .metadata
-                .name
-                .clone()
                 .expect("must have a namespace"),
+            deployment.metadata.name.clone().expect("must have a name"),
         );
 
         if let Some(hash) = deployment.pod_template_hash() {
