@@ -102,13 +102,8 @@ async fn watch_for_new_deployments(
                         .clone()
                         .unwrap_or_else(|| "default".to_string()),
                 );
-
-                // Set up parameters for watching changes
                 let lp = ListParams::default();
-
-                // Start watching for changes in the PodTemplate
                 let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
-
                 // await on try_next suggested to use a pin
                 tokio::pin!(pod_template_stream);
                 // Process watch events
