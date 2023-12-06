@@ -89,7 +89,10 @@ async fn watch_for_new_deployments(
                     continue;
                 }
                 // debug watcher to catch the podTemplate change
-                println!("Creating a watcher for podTemplate in {:?}", &deployment.metadata.namespace);
+                println!(
+                    "Creating a watcher for podTemplate in {:?}",
+                    &deployment.metadata.namespace
+                );
 
                 let pod_template_api: Api<PodTemplate> = Api::namespaced(
                     client.clone(),
