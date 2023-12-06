@@ -37,6 +37,21 @@ impl ResourceFormatter for ObjectMeta {
     }
 }
 
+fn display_container(
+    podtemplate: &PodTemplate,
+    namespace: &str
+) {
+    if let Some(template) = &podtemplate.template {
+        if let Some(pod_spec) = &template.spec {
+            for container in &pod_spec.containers {
+                println!("Debug: Container Image for template in namespace {:?} from k8s api {} : {:?}", namespace, container.name, container.image);
+            }
+        }
+    } else {
+        println!("Debug: No PodTemplate spec found for '{}'", namespace);
+    }
+}
+
 async fn create_job_for_deployment_hook(
     client: Client,
     hook: &DeploymentHook,
@@ -93,14 +108,16 @@ async fn watch_for_new_deployments(
                     "Creating a watcher for podTemplate in {:?}",
                     &deployment.metadata.namespace
                 );
+                let namespace = &deployment
+                    .metadata
+                    .namespace
+                    .clone()
+                    .unwrap_or_else(|| "default".to_string());
+
 
                 let pod_template_api: Api<PodTemplate> = Api::namespaced(
                     client.clone(),
-                    &deployment
-                        .metadata
-                        .namespace
-                        .clone()
-                        .unwrap_or_else(|| "default".to_string()),
+                    namespace,
                 );
                 let lp = ListParams::default();
                 let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
@@ -110,10 +127,13 @@ async fn watch_for_new_deployments(
                 while let Some(pod_template_event) = pod_template_stream.try_next().await? {
                     match pod_template_event {
                         WatchEvent::Added(pod_template) => {
-                            println!("PodTemplate added: {:?}", pod_template);
+                            println!("PodTemplate added:");
+                            display_container(&pod_template, namespace);
+
                         }
                         WatchEvent::Modified(pod_template) => {
-                            println!("PodTemplate modified: {:?}", pod_template);
+                            println!("PodTemplate modified:");
+                            display_container(&pod_template, namespace);
                         }
                         WatchEvent::Error(error) => {
                             println!("Error: {:?}", error);
