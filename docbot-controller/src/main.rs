@@ -3,6 +3,7 @@ use docbot_crd::DeploymentHook;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::Job;
+use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::{
     api::{ListParams, PostParams},
@@ -86,6 +87,41 @@ async fn watch_for_new_deployments(
                 // If the deployment hasn't finished, we should skip.
                 if !deployment.did_successfully_deploy() {
                     continue;
+                }
+                // debug watcher to catch the podTemplate change
+                println!("Creating a watcher for podTemplate in {:?}", &deployment.metadata.namespace);
+
+                let pod_template_api: Api<PodTemplate> = Api::namespaced(
+                    client.clone(),
+                    &deployment
+                        .metadata
+                        .namespace
+                        .clone()
+                        .unwrap_or_else(|| "default".to_string()),
+                );
+
+                // Set up parameters for watching changes
+                let lp = ListParams::default();
+
+                // Start watching for changes in the PodTemplate
+                let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
+
+                // await on try_next suggested to use a pin
+                tokio::pin!(pod_template_stream);
+                // Process watch events
+                while let Some(pod_template_event) = pod_template_stream.try_next().await? {
+                    match pod_template_event {
+                        WatchEvent::Added(pod_template) => {
+                            println!("PodTemplate added: {:?}", pod_template);
+                        }
+                        WatchEvent::Modified(pod_template) => {
+                            println!("PodTemplate modified: {:?}", pod_template);
+                        }
+                        WatchEvent::Error(error) => {
+                            println!("Error: {:?}", error);
+                        }
+                        _ => {}
+                    }
                 }
 
                 // With a successfully deployed deployment, check to see if we've seen
