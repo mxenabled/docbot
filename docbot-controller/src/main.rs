@@ -108,7 +108,7 @@ async fn watch_for_new_deployments(
                     "Creating a watcher for podTemplate in {:?}",
                     &deployment.metadata.namespace
                 );
-                let namespace = &deployment
+                let namespace = deployment
                     .metadata
                     .namespace
                     .clone()
@@ -117,7 +117,7 @@ async fn watch_for_new_deployments(
 
                 let pod_template_api: Api<PodTemplate> = Api::namespaced(
                     client.clone(),
-                    namespace,
+                    &namespace,
                 );
                 let lp = ListParams::default();
                 let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
@@ -128,12 +128,12 @@ async fn watch_for_new_deployments(
                     match pod_template_event {
                         WatchEvent::Added(pod_template) => {
                             println!("PodTemplate added:");
-                            display_container(&pod_template, namespace);
+                            display_container(&pod_template, &namespace);
 
                         }
                         WatchEvent::Modified(pod_template) => {
                             println!("PodTemplate modified:");
-                            display_container(&pod_template, namespace);
+                            display_container(&pod_template, &namespace);
                         }
                         WatchEvent::Error(error) => {
                             println!("Error: {:?}", error);
