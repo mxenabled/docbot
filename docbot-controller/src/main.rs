@@ -44,11 +44,11 @@ fn display_container(
     if let Some(template) = &podtemplate.template {
         if let Some(pod_spec) = &template.spec {
             for container in &pod_spec.containers {
-                println!("Debug: Container Image for template in namespace {:?} from k8s api {} : {:?}", namespace, container.name, container.image);
+                println!("Debug watcher: Container Image for template in namespace {:?} from k8s api {} : {:?}", namespace, container.name, container.image);
             }
         }
     } else {
-        println!("Debug: No PodTemplate spec found for '{}'", namespace);
+        println!("Debug watcher: No PodTemplate spec found for '{}'", namespace);
     }
 }
 
