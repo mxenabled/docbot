@@ -37,10 +37,13 @@ impl ResourceFormatter for ObjectMeta {
     }
 }
 
-fn display_container(
-    podtemplate: &PodTemplate,
-    namespace: &str
-) {
+fn display_container(podtemplate: &PodTemplate) {
+    let namespace = &podtemplate
+        .metadata
+        .namespace
+        .clone()
+        .expect("all object will have namespace");
+
     if let Some(template) = &podtemplate.template {
         if let Some(pod_spec) = &template.spec {
             for container in &pod_spec.containers {
@@ -48,7 +51,10 @@ fn display_container(
             }
         }
     } else {
-        println!("Debug watcher: No PodTemplate spec found for '{}'", namespace);
+        println!(
+            "Debug watcher: No PodTemplate spec found for '{}'",
+            namespace
+        );
     }
 }
 
@@ -68,6 +74,33 @@ async fn create_job_for_deployment_hook(
         .create(&PostParams::default(), &generated_job)
         .await?;
 
+    Ok(())
+}
+
+async fn watch_for_podtemplate(client: Client) -> Result<(), Box<dyn std::error::Error>> {
+    let pod_template_api: Api<PodTemplate> = Api::all(client);
+
+    let lp = ListParams::default();
+    let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
+    // await on try_next suggested to use a pin
+    tokio::pin!(pod_template_stream);
+    // Process watch events
+    while let Some(pod_template_event) = pod_template_stream.try_next().await? {
+        match pod_template_event {
+            WatchEvent::Added(pod_template) => {
+                println!("PodTemplate added:");
+                display_container(&pod_template);
+            }
+            WatchEvent::Modified(pod_template) => {
+                println!("PodTemplate modified:");
+                display_container(&pod_template);
+            }
+            WatchEvent::Error(error) => {
+                println!("Error: {:?}", error);
+            }
+            _ => {}
+        }
+    }
     Ok(())
 }
 
@@ -102,44 +135,6 @@ async fn watch_for_new_deployments(
                 // If the deployment hasn't finished, we should skip.
                 if !deployment.did_successfully_deploy() {
                     continue;
-                }
-                // debug watcher to catch the podTemplate change
-                println!(
-                    "Creating a watcher for podTemplate in {:?}",
-                    &deployment.metadata.namespace
-                );
-                let namespace = deployment
-                    .metadata
-                    .namespace
-                    .clone()
-                    .unwrap_or_else(|| "default".to_string());
-
-
-                let pod_template_api: Api<PodTemplate> = Api::namespaced(
-                    client.clone(),
-                    &namespace,
-                );
-                let lp = ListParams::default();
-                let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
-                // await on try_next suggested to use a pin
-                tokio::pin!(pod_template_stream);
-                // Process watch events
-                while let Some(pod_template_event) = pod_template_stream.try_next().await? {
-                    match pod_template_event {
-                        WatchEvent::Added(pod_template) => {
-                            println!("PodTemplate added:");
-                            display_container(&pod_template, &namespace);
-
-                        }
-                        WatchEvent::Modified(pod_template) => {
-                            println!("PodTemplate modified:");
-                            display_container(&pod_template, &namespace);
-                        }
-                        WatchEvent::Error(error) => {
-                            println!("Error: {:?}", error);
-                        }
-                        _ => {}
-                    }
                 }
 
                 // With a successfully deployed deployment, check to see if we've seen
@@ -259,6 +254,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     watch_for_new_deployments(client.clone(), cache.clone(), template_cache.clone())
                         .await
                 {
+                    println!("Error while watching deployment hook changes: {err:?}");
+                }
+
+                println!("Deployment watcher finished or expired, restarting...");
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let client = client.clone();
+
+        async move {
+            // Watch for deployment changes
+            loop {
+                if let Err(err) = watch_for_podtemplate(client.clone()).await {
                     println!("Error while watching deployment hook changes: {err:?}");
                 }
 
