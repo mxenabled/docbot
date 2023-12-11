@@ -39,7 +39,7 @@ impl ResourceFormatter for ObjectMeta {
     }
 }
 
-fn display_container(podtemplate: &PodTemplate) {
+fn display_container(podtemplate: &PodTemplate, event: &str) {
     let namespace = &podtemplate
         .metadata
         .namespace
@@ -49,7 +49,7 @@ fn display_container(podtemplate: &PodTemplate) {
     if let Some(template) = &podtemplate.template {
         if let Some(pod_spec) = &template.spec {
             for container in &pod_spec.containers {
-                info!("Debug watcher: Container Image for template in namespace {:?} from k8s api {} : {:?}", namespace, container.name, container.image);
+                info!("Debug watcher: For event {} - Container Image for template in namespace {:?} from k8s api {} : {:?}", event, namespace, container.name, container.image);
             }
         }
     } else {
@@ -90,12 +90,10 @@ async fn watch_for_podtemplate(client: Client) -> Result<(), Box<dyn std::error:
     while let Some(pod_template_event) = pod_template_stream.try_next().await? {
         match pod_template_event {
             WatchEvent::Added(pod_template) => {
-                debug!("PodTemplate added:");
-                display_container(&pod_template);
+                display_container(&pod_template, "ADDED");
             }
             WatchEvent::Modified(pod_template) => {
-                debug!("PodTemplate modified:");
-                display_container(&pod_template);
+                display_container(&pod_template, "MODIFIED");
             }
             WatchEvent::Error(error) => {
                 debug!("Error: {:?}", error);
@@ -200,16 +198,16 @@ async fn watch_for_deployment_hook_changes(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // construct a subscriber that prints formatted traces to stdout
     let subscriber = tracing_subscriber::fmt()
-    // Use a more compact, abbreviated log format
-    .pretty()
-    // Display the thread ID an event was recorded on
-    .with_thread_ids(true)
-    // Don't display the event's target (module path)
-    .with_target(false)
-    .with_max_level(Level::DEBUG)
-    .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-    // Build the subscriber
-    .finish();
+        // Use a more compact, abbreviated log format
+        .pretty()
+        // Display the thread ID an event was recorded on
+        .with_thread_ids(true)
+        // Don't display the event's target (module path)
+        .with_target(false)
+        .with_max_level(Level::DEBUG)
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        // Build the subscriber
+        .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
     debug!("Setting up k8s config");
