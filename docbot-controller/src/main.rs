@@ -12,9 +12,9 @@ use kube::{
     Api,
 };
 use utils::DeploymentExt;
-use tracing_subscriber::fmt::Subscriber;
+use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use tracing::{info, debug};
-use std::env;
+
 
 mod cache;
 mod job;
@@ -198,11 +198,17 @@ async fn watch_for_deployment_hook_changes(
 }
 
 fn setup_tracing() {
-    let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let filter_layer = EnvFilter::try_from_default_env()
+    .or_else(|_| EnvFilter::try_new("info"))
+    .unwrap();
 
-    Subscriber::builder()
-        .with_env_filter(log_level)
-        .init();
+    let fmt_layer = fmt::layer()
+    .with_target(false);
+
+    tracing_subscriber::registry()
+    .with(filter_layer)
+    .with(fmt_layer)
+    .init();
 }
 
 #[tokio::main]
