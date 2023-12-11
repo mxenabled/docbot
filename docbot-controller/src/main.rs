@@ -201,9 +201,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // construct a subscriber that prints formatted traces to stdout
     let subscriber = tracing_subscriber::fmt()
     // Use a more compact, abbreviated log format
-    .compact()
-    // Display source code file paths
-    .with_file(true)
+    .pretty()
     // Display the thread ID an event was recorded on
     .with_thread_ids(true)
     // Don't display the event's target (module path)
