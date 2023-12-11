@@ -76,11 +76,29 @@ impl DeploymentHook {
 
         if let Some(ref name) = self.spec.template.name {
             let specific_pod_template = pod_template_api.get(&name).await?;
+            let dep_time = self
+                .metadata
+                .creation_timestamp
+                .clone()
+                .expect("No timestamp in deployment");
+            let pod_time = specific_pod_template
+                .metadata
+                .creation_timestamp
+                .clone()
+                .expect("No timestamp in podTemplate");
+            info!(
+                "Deployment hook time: {:?} vs podTemplate time: {:?}",
+                dep_time, pod_time
+            );
             // Print containers and their images
             if let Some(template) = &specific_pod_template.template {
                 if let Some(pod_spec) = &template.spec {
                     for container in &pod_spec.containers {
-                        info!("Container Image for template {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
+                        info!("Container Image for template {} in namespace {:?} from k8s api {} : {:?}",
+                        name,
+                        self.metadata.namespace,
+                        container.name,
+                        container.image);
                     }
                 }
             } else {
