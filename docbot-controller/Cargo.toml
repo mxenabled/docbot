@@ -15,7 +15,7 @@ serde_yaml = "0.8"
 tokio = { version = "1.15.0", features = ["full"] }
 sha2 = "0.10"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["alloc"] }
+tracing-subscriber = {version="0.3", features=["env-filter"]}
 
 [build-dependencies]
 docbot-crd = { path = "../docbot-crd" }

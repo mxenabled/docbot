@@ -1,5 +1,7 @@
 use crate::cache::{CacheOp, DeploymentHookCache, DeploymentPodTemplateHashCache};
 use docbot_crd::DeploymentHook;
+use tracing::{debug, info, Level};
+
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::Job;
@@ -12,9 +14,6 @@ use kube::{
     Api,
 };
 use utils::DeploymentExt;
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
-use tracing::{info, debug};
-
 
 mod cache;
 mod job;
@@ -197,23 +196,26 @@ async fn watch_for_deployment_hook_changes(
     Ok(())
 }
 
-fn setup_tracing() {
-    let filter_layer = EnvFilter::try_from_default_env()
-    .or_else(|_| EnvFilter::try_new("info"))
-    .unwrap();
-
-    let fmt_layer = fmt::layer()
-    .with_target(false);
-
-    tracing_subscriber::registry()
-    .with(filter_layer)
-    .with(fmt_layer)
-    .init();
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing();
+    // construct a subscriber that prints formatted traces to stdout
+    let subscriber = tracing_subscriber::fmt()
+    // Use a more compact, abbreviated log format
+    .compact()
+    // Display source code file paths
+    .with_file(true)
+    // Display the thread ID an event was recorded on
+    .with_thread_ids(true)
+    // Don't display the event's target (module path)
+    .with_target(false)
+    .with_max_level(Level::DEBUG)
+    .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    // Build the subscriber
+    .finish();
+
+    tracing::subscriber::set_global_default(subscriber)?;
+    debug!("Setting up k8s config");
+
     let client: Client = Client::try_default()
         .await
         .expect("Expected a valid KUBECONFIG environment variable.");
