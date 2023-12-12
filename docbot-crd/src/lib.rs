@@ -9,7 +9,7 @@ use kube::{client::Client, Api};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::{debug, info};
+use tracing::info;
 
 /// The default job ttl is 72 hours.
 fn default_job_ttl_seconds_after_finished() -> Option<i32> {
@@ -81,14 +81,21 @@ impl DeploymentHook {
 
             let pod_time = specific_pod_template
                 .metadata
-                .annotations
+                .creation_timestamp
+                .clone()
+                .expect("No timestamp in podTemplate");
+
+            let generation = specific_pod_template
+                .metadata
+                .generation
                 .clone()
                 .expect("No timestamp in podTemplate");
 
             info!(
-                "Current time: {:?} vs podTemplate time: {:?}",
+                "Current time: {:?} vs podTemplate time: {:?} with generation {:?}",
                 Utc::now().to_rfc3339(),
-                pod_time
+                pod_time,
+                generation
             );
             // Print containers and their images
             if let Some(template) = &specific_pod_template.template {
