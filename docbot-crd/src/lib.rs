@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tokio::sync::mpsc;
-use tracing::{info, error};
+use tracing::{info, error, debug};
 
 /// The default job ttl is 72 hours.
 fn default_job_ttl_seconds_after_finished() -> Option<i32> {
@@ -132,7 +132,7 @@ impl DeploymentHook {
                         .as_ref()
                         .ok_or("No generation in podTemplate")?;
 
-                    info!(
+                    debug!(
                         "Current time: {:?} vs podTemplate time: {:?} with generation {:?}",
                         Utc::now().to_rfc3339(),
                         pod_time,
