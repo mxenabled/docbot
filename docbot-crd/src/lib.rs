@@ -1,14 +1,15 @@
 use chrono::Utc;
+use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::api::core::v1::PodTemplateSpec;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::chrono;
-use kube::CustomResource;
-use kube::{client::Client, Api};
+use kube::{api::ListParams, client::Client, core::WatchEvent, Api, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use tokio::sync::mpsc;
 use tracing::info;
 
 /// The default job ttl is 72 hours.
@@ -77,41 +78,86 @@ impl DeploymentHook {
         );
 
         if let Some(ref name) = self.spec.template.name {
-            let specific_pod_template = pod_template_api.get(&name).await?;
+            let lp = ListParams::default().fields(&format!("metadata.name={}", name)); // Filter by name
+            let (tx, mut rx) = mpsc::channel::<WatchEvent<PodTemplate>>(25); // Using a buffer size of 25
 
-            let pod_time = specific_pod_template
-                .metadata
-                .creation_timestamp
-                .clone()
-                .expect("No timestamp in podTemplate");
+            tokio::spawn({
+                let pod_template_api = pod_template_api.clone();
+                async move {
+                    let mut stream = pod_template_api
+                        .watch(&lp, "0")
+                        .await
+                        .expect("Failed to initialize watcher")
+                        .boxed();
 
-            let generation = specific_pod_template
-                .metadata
-                .generation
-                .clone()
-                .expect("No timestamp in podTemplate");
-
-            info!(
-                "Current time: {:?} vs podTemplate time: {:?} with generation {:?}",
-                Utc::now().to_rfc3339(),
-                pod_time,
-                generation
-            );
-            // Print containers and their images
-            if let Some(template) = &specific_pod_template.template {
-                if let Some(pod_spec) = &template.spec {
-                    for container in &pod_spec.containers {
-                        info!("Container Image for template {} in namespace {:?} from k8s api {} : {:?}",
-                        name,
-                        self.metadata.namespace,
-                        container.name,
-                        container.image);
+                    while let Some(event) = stream.try_next().await.expect("Failed to watch") {
+                        if tx.send(event).await.is_err() {
+                            break;
+                        }
                     }
                 }
-            } else {
-                info!("No PodTemplate spec found for '{}'", name);
+            });
+
+            let mut specific_pod_template: Option<PodTemplate> = None;
+
+            while let Some(event) = rx.recv().await {
+                match event {
+                    WatchEvent::Added(pod_template) => {
+                        specific_pod_template = Some(pod_template);
+                    }
+                    WatchEvent::Modified(pod_template) => {
+                        specific_pod_template = Some(pod_template); // Override stored PodTemplate on modification
+                    }
+                    WatchEvent::Deleted(_) => {
+                       // We don't care about delete
+                    }
+                    WatchEvent::Error(e) => {
+                        eprintln!("Error: {:?}", e);
+                        
+                    }
+                    _ => {}
+                }
             }
-            return Ok(specific_pod_template);
+
+            match &specific_pod_template {
+                Some(template) => {
+                    let pod_time = template
+                        .metadata
+                        .creation_timestamp
+                        .as_ref()
+                        .ok_or("No timestamp in podTemplate")?;
+                    let generation = template
+                        .metadata
+                        .generation
+                        .as_ref()
+                        .ok_or("No generation in podTemplate")?;
+
+                    info!(
+                        "Current time: {:?} vs podTemplate time: {:?} with generation {:?}",
+                        Utc::now().to_rfc3339(),
+                        pod_time,
+                        generation
+                    );
+
+                    if let Some(pod_spec) = template.template.as_ref().and_then(|t| t.spec.as_ref())
+                    {
+                        for container in &pod_spec.containers {
+                            info!(
+                                "Container Image for template {} in namespace {:?} from k8s api {} : {:?}",
+                                name,
+                                self.metadata.namespace, // Replace this with the appropriate value
+                                container.name,
+                                container.image
+                            );
+                        }
+                    } else {
+                        info!("No PodTemplate spec found for '{}'", name);
+                    }
+
+                    return Ok(specific_pod_template.expect("Error empty podtemplate"));
+                }
+                None => {}
+            }
         }
 
         Err(format!(

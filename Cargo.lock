@@ -228,12 +228,14 @@ dependencies = [
 name = "docbot-crd"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "k8s-openapi",
  "kube",
  "kube-runtime",
  "schemars",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 
