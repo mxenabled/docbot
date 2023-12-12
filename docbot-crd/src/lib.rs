@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tokio::sync::mpsc;
-use tracing::{info, error, debug};
+use tracing::{debug, error, info};
 
 /// The default job ttl is 72 hours.
 fn default_job_ttl_seconds_after_finished() -> Option<i32> {
@@ -76,11 +76,11 @@ impl DeploymentHook {
                 .clone()
                 .unwrap_or_else(|| "default".to_string()),
         );
-        
+
         if let Some(ref name) = self.spec.template.name {
             let lp = ListParams::default().fields(&format!("metadata.name={}", name)); // Filter by name
             let (tx, mut rx) = mpsc::channel::<WatchEvent<PodTemplate>>(25); // Using a buffer size of 25
-            // create a non blocking event stream and sent the events via buffered channel of size 25
+                                                                             // create a non blocking event stream and sent the events via buffered channel of size 25
             tokio::spawn({
                 let pod_template_api = pod_template_api.clone();
                 async move {
@@ -109,11 +109,10 @@ impl DeploymentHook {
                         specific_pod_template = Some(pod_template); // Override stored PodTemplate on modification
                     }
                     WatchEvent::Deleted(_) => {
-                       // We don't care about delete
+                        // We don't care about delete
                     }
                     WatchEvent::Error(e) => {
                         error!("Error: {:?}", e);
-                        
                     }
                     _ => {}
                 }
