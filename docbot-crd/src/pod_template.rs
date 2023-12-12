@@ -5,7 +5,8 @@ use kube::{api::ListParams, client::Client, Api};
 use lru::LruCache;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct PodTemplateService {
@@ -25,6 +26,21 @@ impl PodTemplateService {
         name: &str,
         namespace: &str,
     ) -> Result<Option<PodTemplate>, Box<dyn std::error::Error>> {
-        todo!()
+        let mut locked = self.cache.lock().await;
+
+        // Check the LRU cache for the pod template.
+        let cache_key = (namespace.to_string(), name.to_string());
+        if let Some(pod_template) = locked.get(&cache_key) {
+            return Ok(Some(pod_template.clone()));
+        }
+
+        // Otherwise we should pull directly from the API.
+        let pod_template_api: Api<PodTemplate> = Api::namespaced(self.client.clone(), namespace);
+        let pod_template = pod_template_api.get(name).await?;
+
+        // Now fill the cache so we can avoid an API call next time.
+        locked.push(cache_key, pod_template.clone());
+
+        Ok(Some(pod_template))
     }
 }
