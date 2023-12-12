@@ -76,19 +76,21 @@ impl DeploymentHook {
 
         if let Some(ref name) = self.spec.template.name {
             let specific_pod_template = pod_template_api.get(&name).await?;
-            let dep_time = self
+            let dep_annotation = self
                 .metadata
-                .creation_timestamp
+                .annotations
                 .clone()
-                .expect("No timestamp in deployment");
-            let pod_time = specific_pod_template
+                .expect("Annotations are empty");
+
+            let pod_annotations = specific_pod_template
                 .metadata
-                .creation_timestamp
+                .annotations
                 .clone()
                 .expect("No timestamp in podTemplate");
+
             info!(
-                "Deployment hook time: {:?} vs podTemplate time: {:?}",
-                dep_time, pod_time
+                "Deployment hook annotations: {:?} vs podTemplate annotations: {:?}",
+                dep_annotation, pod_annotations
             );
             // Print containers and their images
             if let Some(template) = &specific_pod_template.template {
