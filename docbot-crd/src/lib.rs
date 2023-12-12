@@ -131,7 +131,7 @@ impl DeploymentHook {
                         .generation
                         .as_ref()
                         .ok_or("No generation in podTemplate")?;
-
+                    // This is only for instrumentation purpose, can get rid of the prints before release
                     debug!(
                         "Current time: {:?} vs podTemplate time: {:?} with generation {:?}",
                         Utc::now().to_rfc3339(),
