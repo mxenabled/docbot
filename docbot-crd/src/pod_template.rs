@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct PodTemplateService {
@@ -42,5 +43,23 @@ impl PodTemplateService {
         locked.push(cache_key, pod_template.clone());
 
         Ok(Some(pod_template))
+    }
+
+    pub async fn push(&self, pod_template: PodTemplate) {
+        let namespace = pod_template
+            .metadata
+            .namespace
+            .clone()
+            .unwrap_or_else(|| "default".to_string());
+
+        let mut locked = self.cache.lock().await;
+
+        if let Some(name) = pod_template.metadata.name.clone() {
+            let cache_key = (namespace.to_string(), name.to_string());
+
+            locked.push(cache_key, pod_template);
+        } else {
+            warn!("Could not find a name for pod_template in namepsace: {namespace}")
+        }
     }
 }
