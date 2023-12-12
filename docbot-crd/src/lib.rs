@@ -67,15 +67,6 @@ impl DeploymentHook {
                 template: Some(template.clone()),
             });
         }
-        //         // Otherwise use the name to look it up via the k8s api.
-        //         let pod_template_api: Api<PodTemplate> = Api::namespaced(
-        //             client,
-        //             &self
-        //                 .metadata
-        //                 .namespace
-        //                 .clone()
-        //                 .unwrap_or_else(|| "default".to_string()),
-        //         );
 
         let namespace = &self
             .metadata

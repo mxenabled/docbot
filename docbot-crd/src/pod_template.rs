@@ -1,13 +1,18 @@
 use crate::DeploymentHook;
+use futures::TryStreamExt;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
-use kube::{api::ListParams, client::Client, Api};
+use kube::{
+    api::{ListParams, WatchEvent},
+    client::Client,
+    Api,
+};
 use lru::LruCache;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::warn;
+use tracing::{info, warn};
 
 #[derive(Clone)]
 pub struct PodTemplateService {
@@ -60,6 +65,39 @@ impl PodTemplateService {
             locked.push(cache_key, pod_template);
         } else {
             warn!("Could not find a name for pod_template in namepsace: {namespace}")
+        }
+    }
+
+    pub async fn watch_for_changes(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let pod_template_api: Api<PodTemplate> = Api::all(self.client.clone());
+
+        loop {
+            let lp = ListParams::default();
+            let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
+            tokio::pin!(pod_template_stream);
+
+            while let Some(pod_template_event) = pod_template_stream.try_next().await? {
+                match pod_template_event {
+                    WatchEvent::Added(pod_template) | WatchEvent::Modified(pod_template) => {
+                        let name = pod_template
+                            .metadata
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| "unknown".to_string());
+                        let namespace = pod_template
+                            .metadata
+                            .namespace
+                            .clone()
+                            .unwrap_or_else(|| "default".to_string());
+
+                        info!(
+                            "Witnessed ADD or MODIFIED event for PodTeamplte: {name}/{namespace}"
+                        );
+                        self.push(pod_template);
+                    }
+                    _ => { /* ignore */ }
+                }
+            }
         }
     }
 }
