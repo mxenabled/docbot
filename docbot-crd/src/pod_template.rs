@@ -1,6 +1,5 @@
-use crate::DeploymentHook;
 use futures::TryStreamExt;
-use k8s_openapi::api::apps::v1::Deployment;
+
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::{
     api::{ListParams, WatchEvent},
@@ -8,7 +7,7 @@ use kube::{
     Api,
 };
 use lru::LruCache;
-use std::collections::BTreeMap;
+
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -93,7 +92,7 @@ impl PodTemplateService {
                         info!(
                             "Witnessed ADD or MODIFIED event for PodTeamplte: {name}/{namespace}"
                         );
-                        self.push(pod_template);
+                        self.push(pod_template).await;
                     }
                     _ => { /* ignore */ }
                 }
