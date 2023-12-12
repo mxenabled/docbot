@@ -1,4 +1,4 @@
-FROM rust:1.58-buster as builder
+FROM rust:1.73-buster as builder
 ADD . /app
 WORKDIR /app
 RUN cd /app/docbot-controller && cargo build --release
