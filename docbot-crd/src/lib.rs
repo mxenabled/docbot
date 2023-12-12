@@ -1,7 +1,9 @@
+use chrono::Utc;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::api::core::v1::PodTemplateSpec;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use k8s_openapi::chrono;
 use kube::CustomResource;
 use kube::{client::Client, Api};
 use schemars::JsonSchema;
@@ -76,21 +78,17 @@ impl DeploymentHook {
 
         if let Some(ref name) = self.spec.template.name {
             let specific_pod_template = pod_template_api.get(&name).await?;
-            let dep_annotation = self
-                .metadata
-                .annotations
-                .clone()
-                .expect("Annotations are empty");
 
-            let pod_annotations = specific_pod_template
+            let pod_time = specific_pod_template
                 .metadata
                 .annotations
                 .clone()
                 .expect("No timestamp in podTemplate");
 
             info!(
-                "Deployment hook annotations: {:?} vs podTemplate annotations: {:?}",
-                dep_annotation, pod_annotations
+                "Current time: {:?} vs podTemplate time: {:?}",
+                Utc::now().to_rfc3339(),
+                pod_time
             );
             // Print containers and their images
             if let Some(template) = &specific_pod_template.template {
