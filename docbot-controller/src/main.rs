@@ -151,7 +151,7 @@ async fn watch_for_deployment_hook_changes(
     let mut stream = hooks_api.watch(&params, &resource_version).await?.boxed();
 
     while let Some(_event) = stream.try_next().await? {
-        println!("Refreshing deployment hook cache.");
+        info!("Refreshing deployment hook cache.");
         cache.refresh(&client).await?;
     }
 
