@@ -7,6 +7,7 @@ use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use tracing::{info};
 
 mod pod_template;
 
@@ -81,11 +82,11 @@ impl DeploymentHook {
                 if let Some(template) = &specific_pod_template.template {
                     if let Some(pod_spec) = &template.spec {
                         for container in &pod_spec.containers {
-                            println!("Debug: Container Image for template {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
+                            info!("Container Image for template {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
                         }
                     }
                 } else {
-                    println!("Debug: No PodTemplate spec found for '{}'", name);
+                    info!("No PodTemplate spec found for '{}'", name);
                 }
                 return Ok(specific_pod_template);
             } else {
