@@ -245,6 +245,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         async move {
             // Watch for deployment changes
             loop {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 if let Err(err) = watch_for_new_deployments(
                     client.clone(),
                     cache.clone(),
@@ -257,7 +258,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 info!("Deployment watcher finished or expired, restarting...");
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
         }
     });
