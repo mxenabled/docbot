@@ -7,7 +7,7 @@ use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::{info};
+use tracing::info;
 
 mod pod_template;
 
