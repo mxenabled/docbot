@@ -38,7 +38,7 @@ impl PodTemplateService {
         if let Some(pod_template) = locked.get(&cache_key) {
             return Ok(Some(pod_template.clone()));
         }
-
+        info!("Cache miss: calling the api");
         // Otherwise we should pull directly from the API.
         let pod_template_api: Api<PodTemplate> = Api::namespaced(self.client.clone(), namespace);
         let pod_template = pod_template_api.get(name).await?;
