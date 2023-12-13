@@ -245,6 +245,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         async move {
             // Watch for deployment changes
             loop {
+                info!("Deployment watcher starting...");
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 if let Err(err) = watch_for_new_deployments(
                     client.clone(),
