@@ -75,7 +75,7 @@ impl PodTemplateService {
             let pod_template_stream = pod_template_api.watch(&lp, "0").await?;
             tokio::pin!(pod_template_stream);
 
-            while let Some(pod_template_event) = pod_template_stream.try_next().await? {
+            while let Some(ref pod_template_event) = pod_template_stream.try_next().await? {
                 match pod_template_event {
                     WatchEvent::Added(pod_template) | WatchEvent::Modified(pod_template) => {
                         let name = pod_template
@@ -93,7 +93,7 @@ impl PodTemplateService {
                             "Witnessed {:?} event for PodTeamplte: {}/{}",
                             pod_template_event, name, namespace
                         );
-                        self.push(pod_template).await;
+                        self.push(pod_template.clone()).await;
                     }
                     _ => { /* ignore */ }
                 }
