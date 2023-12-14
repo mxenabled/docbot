@@ -246,7 +246,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Watch for deployment changes
             loop {
                 info!("Deployment watcher starting...");
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                // Debug line to increase the time difference between deployment hook and template watcher
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
                 if let Err(err) = watch_for_new_deployments(
                     client.clone(),
                     cache.clone(),
