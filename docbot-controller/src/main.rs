@@ -42,6 +42,9 @@ async fn create_job_for_deployment_hook(
     pod_template_service: PodTemplateService,
     hook: &DeploymentHook,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    //Test wait to ensure the podTemplate cache cathes up
+    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+
     let generated_job = job::generate_from_template(
         hook,
         hook.get_pod_template(pod_template_service.clone()).await?,
@@ -246,8 +249,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Watch for deployment changes
             loop {
                 info!("Deployment watcher starting...");
-                // Debug line to increase the time difference between deployment hook and template watcher
-                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 if let Err(err) = watch_for_new_deployments(
                     client.clone(),
                     cache.clone(),
