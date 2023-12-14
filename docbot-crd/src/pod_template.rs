@@ -90,7 +90,7 @@ impl PodTemplateService {
                             .unwrap_or_else(|| "default".to_string());
 
                         info!(
-                            "Witnessed {:?} event for PodTeamplte: {}/{}",
+                            "Witnessed {:?} for PodTeamplte: {}/{}",
                             pod_template_event, name, namespace
                         );
                         self.push(pod_template.clone()).await;
