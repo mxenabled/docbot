@@ -53,6 +53,19 @@ pub struct InternalPodTemplate {
 }
 
 impl DeploymentHook {
+    pub fn has_embedded_pod_template(&self) -> bool {
+        // Check to see if the template was embedded in the struct.
+        if let Some(ref template) = self.spec.template.spec {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_pod_template_name(&self) -> Option<String> {
+        self.spec.template.name.clone()
+    }
+
     pub async fn get_pod_template(
         &self,
         pod_template_service: PodTemplateService,
