@@ -30,3 +30,18 @@ build:
   script:
     - docker build -t "$IMG" .
     - docker push "$IMG"
+
+build-on-commit:
+  before_script:
+    - docker login -u gitlabci -p "{JWT}${CI_JOB_JWT}" $MX_REGISTRY
+  script:
+    - docker build -t "$IMG" .
+    - docker push "$IMG"
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /BUILD_FEATURE_BRANCH/i
+    refs:
+      - branches
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
