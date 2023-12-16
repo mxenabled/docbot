@@ -55,7 +55,7 @@ pub struct InternalPodTemplate {
 impl DeploymentHook {
     pub fn has_embedded_pod_template(&self) -> bool {
         // Check to see if the template was embedded in the struct.
-        if let Some(ref template) = self.spec.template.spec {
+        if let Some(ref _template) = self.spec.template.spec {
             true
         } else {
             false

@@ -1,6 +1,5 @@
-use futures::TryStreamExt;
 use futures::future::{self, FutureExt};
-use crate::DeploymentHook;
+use futures::TryStreamExt;
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::{
     api::{ListParams, WatchEvent},
@@ -10,12 +9,11 @@ use kube::{
 use lru::LruCache;
 use tokio::sync::broadcast::Sender;
 
-
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tokio::sync::broadcast;
-use tracing::{info, warn, error};
+use tokio::sync::Mutex;
+use tracing::{error, info, warn};
 
 #[derive(Clone)]
 pub struct PodTemplateService {
@@ -38,18 +36,18 @@ impl PodTemplateService {
 
     pub async fn wait_for_deployment_hook_pod_template_changes(
         &self,
-        hook: &DeploymentHook,
         hook_name: String,
+        has_embeded_template: bool,
         timeout: std::time::Duration,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // If the pod template, is in-lined, we don't need to wait for anything.
-        if hook.has_embedded_pod_template() {
+        if has_embeded_template {
             return Ok(());
         }
 
         // Subscribe to the change, await for one, or bail out if the duration expires.
         let mut receiver = self.changes_channel.subscribe();
-       
+
         let recv_future = Box::pin(async move {
             while let Ok(pod_template_name_namespace_pair) = receiver.recv().await {
                 if pod_template_name_namespace_pair == hook_name {
@@ -57,11 +55,8 @@ impl PodTemplateService {
                 }
             }
         });
-    
-        future::select(
-            recv_future,
-            tokio::time::sleep(timeout).boxed(),
-        ).await;
+
+        future::select(recv_future, tokio::time::sleep(timeout).boxed()).await;
 
         Ok(())
     }
@@ -136,7 +131,9 @@ impl PodTemplateService {
                         );
                         self.push(pod_template.clone()).await;
 
-                        if let Err(_err) = changes_channel.send(format!("{}/{}", namespace.clone(), name.clone())) {
+                        if let Err(_err) =
+                            changes_channel.send(format!("{}/{}", namespace.clone(), name.clone()))
+                        {
                             error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream");
                         }
                     }
