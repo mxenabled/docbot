@@ -1,4 +1,6 @@
 use futures::TryStreamExt;
+use futures::future::{self, FutureExt};
+use crate::DeploymentHook;
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::{
     api::{ListParams, WatchEvent},
@@ -8,17 +10,18 @@ use kube::{
 use lru::LruCache;
 use tokio::sync::broadcast::Sender;
 
-use futures::future;
+
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, warn};
+use tokio::sync::broadcast;
+use tracing::{info, warn, error};
 
 #[derive(Clone)]
 pub struct PodTemplateService {
     cache: Arc<Mutex<LruCache<(String, String), PodTemplate>>>,
     client: Client,
-    changes_channel: Sender<(String, String)>,
+    changes_channel: Sender<String>,
 }
 
 impl PodTemplateService {
@@ -36,6 +39,7 @@ impl PodTemplateService {
     pub async fn wait_for_deployment_hook_pod_template_changes(
         &self,
         hook: &DeploymentHook,
+        hook_name: String,
         timeout: std::time::Duration,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // If the pod template, is in-lined, we don't need to wait for anything.
@@ -43,25 +47,21 @@ impl PodTemplateService {
             return Ok(());
         }
 
-        // Obtain the pod template (namespace, name) tuple...
-        let subscription_key = (
-            hook.metadata.namespace.unwrap_or_default(|| "default"),
-            hook.get_pod_template_name().unwrap_or_default(|| "default"),
-        );
-
         // Subscribe to the change, await for one, or bail out if the duration expires.
         let mut receiver = self.changes_channel.subscribe();
-        future::select(
-            async {
-                while let Ok(pod_template_name_namespace_pair) = receiver.recv().await {
-                    if pod_template_name_namespace_pair == subscription_key {
-                        return ();
-                    }
+       
+        let recv_future = Box::pin(async move {
+            while let Ok(pod_template_name_namespace_pair) = receiver.recv().await {
+                if pod_template_name_namespace_pair == hook_name {
+                    return ();
                 }
-            },
-            tokio::time::sleep(timeout),
-        )
-        .await;
+            }
+        });
+    
+        future::select(
+            recv_future,
+            tokio::time::sleep(timeout).boxed(),
+        ).await;
 
         Ok(())
     }
@@ -136,8 +136,8 @@ impl PodTemplateService {
                         );
                         self.push(pod_template.clone()).await;
 
-                        if Err(err) = changes_channel.send((namespace, name).clone()).await {
-                            error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream}");
+                        if let Err(_err) = changes_channel.send(format!("{}/{}", namespace.clone(), name.clone())) {
+                            error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream");
                         }
                     }
                     _ => { /* ignore */ }
