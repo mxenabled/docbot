@@ -131,10 +131,12 @@ impl PodTemplateService {
                         );
                         self.push(pod_template.clone()).await;
 
-                        if let Err(_err) =
+                        if let Err(err) =
                             changes_channel.send(format!("{}/{}", namespace.clone(), name.clone()))
                         {
-                            error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream");
+                            error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream with error {}", err);
+                        } else  {
+                            info!("Published event for {}", format!("{}/{}", namespace.clone(), name.clone()))
                         }
                     }
                     _ => { /* ignore */ }
