@@ -48,7 +48,6 @@ impl PodTemplateService {
         // Subscribe to the change, await for one, or bail out if the duration expires.
         let mut receiver = self.changes_channel.subscribe();
 
-        
         let recv_future = tokio::spawn(async move {
             while let Ok(pod_template_name_namespace_pair) = receiver.recv().await {
                 if pod_template_name_namespace_pair == hook_name {
@@ -139,6 +138,7 @@ impl PodTemplateService {
                             changes_channel.send(format!("{}/{}", namespace.clone(), name.clone()))
                         {
                             info!("receiver count {}", changes_channel.receiver_count());
+                            //This happens a lot as not all events will have a receiver ready"
                             warn!("Unable to publish a change to {namespace}/{name} over internal brodcast stream with error {}", 
                             err);
                         } else {
