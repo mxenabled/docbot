@@ -267,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn({
         let cache = cache.clone();
         let client = client.clone();
-        let pod_template_service = pod_template_service.clone();
+        // let pod_template_service = pod_template_service.clone();
 
         async move {
             // Watch for deployment changes

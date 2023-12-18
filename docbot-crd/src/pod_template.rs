@@ -1,4 +1,4 @@
-use futures::future::{self, FutureExt};
+use futures::future::{self};
 use futures::TryStreamExt;
 use k8s_openapi::api::core::v1::PodTemplate;
 use kube::{
@@ -48,15 +48,19 @@ impl PodTemplateService {
         // Subscribe to the change, await for one, or bail out if the duration expires.
         let mut receiver = self.changes_channel.subscribe();
 
-        let recv_future = Box::pin(async move {
+        
+        let recv_future = tokio::spawn(async move {
             while let Ok(pod_template_name_namespace_pair) = receiver.recv().await {
                 if pod_template_name_namespace_pair == hook_name {
-                    return ();
+                    return;
                 }
             }
         });
 
-        future::select(recv_future, tokio::time::sleep(timeout).boxed()).await;
+        let recv_task = recv_future;
+        let sleep_task = Box::pin(tokio::time::sleep(timeout));
+
+        future::select(recv_task, sleep_task).await;
 
         Ok(())
     }
@@ -134,9 +138,14 @@ impl PodTemplateService {
                         if let Err(err) =
                             changes_channel.send(format!("{}/{}", namespace.clone(), name.clone()))
                         {
-                            error!("Unable to publish a change to {namespace}/{name} over internal brodcast stream with error {}", err);
-                        } else  {
-                            info!("Published event for {}", format!("{}/{}", namespace.clone(), name.clone()))
+                            info!("receiver count {}", changes_channel.receiver_count());
+                            warn!("Unable to publish a change to {namespace}/{name} over internal brodcast stream with error {}", 
+                            err);
+                        } else {
+                            info!(
+                                "Published event for {}",
+                                format!("{}/{}", namespace.clone(), name.clone())
+                            );
                         }
                     }
                     _ => { /* ignore */ }
