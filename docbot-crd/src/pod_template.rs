@@ -13,7 +13,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Clone)]
 pub struct PodTemplateService {
