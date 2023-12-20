@@ -3,10 +3,15 @@ use k8s_openapi::api::core::v1::PodTemplate;
 use k8s_openapi::api::core::v1::PodTemplateSpec;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::CustomResource;
-use kube::{client::Client, Api};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use tracing::info;
+
+mod pod_template;
+
+pub use pod_template::PodTemplateService;
 
 /// The default job ttl is 72 hours.
 fn default_job_ttl_seconds_after_finished() -> Option<i32> {
@@ -48,9 +53,22 @@ pub struct InternalPodTemplate {
 }
 
 impl DeploymentHook {
+    pub fn has_embedded_pod_template(&self) -> bool {
+        // Check to see if the template was embedded in the struct.
+        if let Some(ref _template) = self.spec.template.spec {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_pod_template_name(&self) -> Option<String> {
+        self.spec.template.name.clone()
+    }
+
     pub async fn get_pod_template(
         &self,
-        client: Client,
+        pod_template_service: PodTemplateService,
     ) -> Result<PodTemplate, Box<dyn std::error::Error>> {
         // Check to see if the template was embedded in the struct.
         if let Some(ref template) = self.spec.template.spec {
@@ -63,29 +81,30 @@ impl DeploymentHook {
                 template: Some(template.clone()),
             });
         }
-        // Otherwise use the name to look it up via the k8s api.
-        let pod_template_api: Api<PodTemplate> = Api::namespaced(
-            client,
-            &self
-                .metadata
-                .namespace
-                .clone()
-                .unwrap_or_else(|| "default".to_string()),
-        );
+
+        let namespace = &self
+            .metadata
+            .namespace
+            .clone()
+            .unwrap_or_else(|| "default".to_string());
 
         if let Some(ref name) = self.spec.template.name {
-            let specific_pod_template = pod_template_api.get(&name).await?;
-            // Print containers and their images
-            if let Some(template) = &specific_pod_template.template {
-                if let Some(pod_spec) = &template.spec {
-                    for container in &pod_spec.containers {
-                        println!("Debug: Container Image for template {} in namespace {:?} from k8s api {} : {:?}", name, self.metadata.namespace, container.name, container.image);
+            if let Some(specific_pod_template) = pod_template_service.get(&name, &namespace).await?
+            {
+                // Print containers and their images
+                if let Some(template) = &specific_pod_template.template {
+                    if let Some(pod_spec) = &template.spec {
+                        for container in &pod_spec.containers {
+                            info!("Container Image for template {} in namespace {:?} from PodTemplate cache {} : {:?}", name, self.metadata.namespace, container.name, container.image);
+                        }
                     }
+                } else {
+                    info!("No PodTemplate spec found for '{}'", name);
                 }
+                return Ok(specific_pod_template);
             } else {
-                println!("Debug: No PodTemplate spec found for '{}'", name);
+                return Err(format!("Could not find pod template at {namespace}/{name}").into());
             }
-            return Ok(specific_pod_template);
         }
 
         Err(format!(
