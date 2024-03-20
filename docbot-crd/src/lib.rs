@@ -15,7 +15,7 @@ pub use pod_template::PodTemplateService;
 
 /// The default job ttl is 72 hours.
 fn default_job_ttl_seconds_after_finished() -> Option<i32> {
-    Some(259200)
+    Some(86400)
 }
 
 /// Struct corresponding to the Specification (`spec`) part of the `DeploymentHook` resource,
